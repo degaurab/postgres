@@ -1595,7 +1595,25 @@ RangeVarCallbackForDropRelation(const RangeVar *rel, Oid relOid, Oid oldRelOid,
 	{
 		state->heapOid = IndexGetRelation(relOid, true);
 		if (OidIsValid(state->heapOid))
+		{
 			LockRelationOid(state->heapOid, heap_lockmode);
+
+			/* In case of paritition table respective table should be locked before
+			 * its indexes
+			 */
+			if (classform->relkind == RELKIND_PARTITIONED_INDEX)
+			{
+				List *part_oids = find_all_inheritors(state->heapOid, NoLock, NULL);
+				ListCell *part_lc;
+
+				foreach(part_lc, part_oids)
+				{
+					Oid part_oid = lfirst_oid(part_lc);
+					if (OidIsValid(part_oid))
+						LockRelationOid(part_oid, heap_lockmode);
+				}
+			}
+		}
 	}
 
 	/*

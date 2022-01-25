@@ -1,0 +1,76 @@
+Parsed test spec with 4 sessions
+
+starting permutation: s1begin s2begin s1pid s2pid s0analyze s1select s2drop s1lock s1commit s2commit
+step s1begin: BEGIN;
+step s2begin: BEGIN;
+step s1pid: SELECT pg_backend_pid();
+pg_backend_pid
+--------------
+         32255
+(1 row)
+
+step s2pid: SELECT pg_backend_pid();
+pg_backend_pid
+--------------
+         32256
+(1 row)
+
+step s0analyze: ANALYZE test_t;
+step s1select: SELECT * FROM test_t_child1_parted1;
+id|val1|val2
+--+----+----
+(0 rows)
+
+step s2drop: DROP INDEX test_t_idx; <waiting ...>
+step s1lock: SELECT c.relname, l.pid, l.mode, l.granted FROM pg_locks l,
+pg_class c WHERE l.relation = c.oid AND c.relname LIKE 'test_t%' ORDER BY c.relname, l.granted;
+relname                      |  pid|mode               |granted
+-----------------------------+-----+-------------------+-------
+test_t                       |32256|AccessExclusiveLock|t      
+test_t_child1_parted1        |32256|AccessExclusiveLock|f      
+test_t_child1_parted1        |32255|AccessShareLock    |t      
+test_t_child1_parted1_id_idx |32255|AccessShareLock    |t      
+test_t_child1_parted1_id_idx1|32255|AccessShareLock    |t      
+test_t_parted1               |32256|AccessExclusiveLock|t      
+(6 rows)
+
+step s1commit: COMMIT;
+step s2drop: <... completed>
+step s2commit: COMMIT;
+
+starting permutation: s1begin s3begin s1pid s3pid s0analyze s1select s3drop s1lock s1commit s3commit
+step s1begin: BEGIN;
+step s3begin: BEGIN;
+step s1pid: SELECT pg_backend_pid();
+pg_backend_pid
+--------------
+         32255
+(1 row)
+
+step s3pid: SELECT pg_backend_pid();
+pg_backend_pid
+--------------
+         32257
+(1 row)
+
+step s0analyze: ANALYZE test_t;
+step s1select: SELECT * FROM test_t_child1_parted1;
+id|val1|val2
+--+----+----
+(0 rows)
+
+step s3drop: DROP INDEX test_parted1_idx; <waiting ...>
+step s1lock: SELECT c.relname, l.pid, l.mode, l.granted FROM pg_locks l,
+pg_class c WHERE l.relation = c.oid AND c.relname LIKE 'test_t%' ORDER BY c.relname, l.granted;
+relname                      |  pid|mode               |granted
+-----------------------------+-----+-------------------+-------
+test_t_child1_parted1        |32257|AccessExclusiveLock|f      
+test_t_child1_parted1        |32255|AccessShareLock    |t      
+test_t_child1_parted1_id_idx |32255|AccessShareLock    |t      
+test_t_child1_parted1_id_idx1|32255|AccessShareLock    |t      
+test_t_parted1               |32257|AccessExclusiveLock|t      
+(5 rows)
+
+step s1commit: COMMIT;
+step s3drop: <... completed>
+step s3commit: COMMIT;
